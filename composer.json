@@ -1,0 +1,23 @@
+{
+	"name": "pmanager/scraper-php",
+	"description": "PHP web scraper for PManager player data with Google Sheets integration",
+	"type": "project",
+	"require": {
+		"php": "^8.1",
+		"symfony/panther": "^2.1",
+		"google/apiclient": "^2.15",
+		"vlucas/phpdotenv": "^5.6",
+		"symfony/console": "^6.4"
+	},
+	"autoload": {
+		"psr-4": {
+			"App\\": "src/"
+		}
+	},
+	"scripts": {
+		"scrape": "php scrape-all-with-details.php"
+	},
+	"require-dev": {
+		"dbrekelmans/bdi": "^1.4"
+	}
+}

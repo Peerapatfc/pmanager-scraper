@@ -1,11 +1,32 @@
-node_modules
+# PHP Dependencies
+/vendor/
+composer.lock
+
+# Environment & Credentials
 .env
-.DS_Store
-playwright-report/
-test-results/
-logs/
-*.log
 service-account.json
 google-token.json
+
+# Logs
+logs/
+*.log
+
+# Scraped Data
 scraped-players-*.json
 scraped-players-*.csv
+
+# Browser Drivers
+drivers/
+.chromedriver/
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Screenshots (debug)
+*.png
+debug-*.png

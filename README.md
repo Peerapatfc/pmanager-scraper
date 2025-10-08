@@ -1,135 +1,115 @@
-# Playwright Login Tests
+# PManager Scraper - PHP Version
 
-This project contains Playwright tests for the login functionality of https://www.pmanager.org/default.asp
+PHP web scraper for PManager player data with Google Sheets integration.
+
+## Requirements
+
+- PHP 8.1 or higher
+- Composer
+- Chrome/Chromium browser
+- ChromeDriver (automatically managed by Symfony Panther)
 
 ## Setup
 
 1. Install dependencies:
    ```bash
-   npm install
+   composer install
    ```
 
-2. Install Playwright browsers:
-   ```bash
-   npm run install:browsers
-   ```
-
-3. Copy `.env.example` to `.env` and update with your test credentials:
+2. Copy `.env.example` to `.env` and configure:
    ```bash
    cp .env.example .env
    ```
 
-## Running Tests
+3. Add your credentials to `.env`:
+   ```
+   TEST_USERNAME=your_username
+   TEST_PASSWORD=your_password
+   GOOGLE_SERVICE_ACCOUNT_PATH=service-account.json
+   ```
 
-- Run all tests: `npm test`
-- Run tests in headed mode: `npm run test:headed`
-- Run tests with UI: `npm run test:ui`
-- Run player data scraper: `npm run scrape`
+4. Set up Google Sheets API:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project
+   - Enable Google Sheets API
+   - Create a Service Account
+   - Download the JSON key file and save as `service-account.json`
+   - Share your Google Sheet with the service account email
 
-## Important Notes
+## Usage
 
-⚠️ **Before running the tests, you need to:**
-
-1. **Inspect the actual login form** on https://www.pmanager.org/default.asp to get the correct selectors for:
-   - Username field
-   - Password field
-   - Submit button
-
-2. **Update the test selectors** in `tests/login.spec.js` with the actual element selectors from the website
-
-3. **Add valid test credentials** to verify successful login scenarios
-
-4. **Update success/error assertions** based on how the website behaves after login attempts
-
-## Test Structure
-
-- `tests/login.spec.js` - Main login test suite with:
-  - Form display validation
-  - Valid login test (redirects to player search page)
-  - Invalid credentials test
-  - Required field validation
-  - Post-login redirect verification
-
-## Expected Login Flow
-
-After successful login, the application redirects to:
-`https://www.pmanager.org/procurar.asp?action=proc_jog&...` (player search page)
-
-The tests verify this redirect behavior to ensure login is working correctly.
-
-## Data Scraping
-
-The project includes functionality to scrape player data from the search results table:
-
-### Quick Commands:
+Run the scraper:
 ```bash
-npm run scrape              # Scrape single page (30 players)
-npm run scrape-to-sheets    # Scrape single page to Google Sheets
-npm run scrape-all-pages    # Scrape ALL 38 pages (~1,140 players) to Google Sheets
+php scrape-all-with-details.php
 ```
 
-### Using the Test Suite:
-The test `should scrape player data from search results table` will extract table data during test execution.
-
-### Using the Standalone Scraper:
+Or use Composer:
 ```bash
-npm run scrape
+composer scrape
 ```
 
-This will:
-1. Login to the website
-2. Navigate to the player search page
-3. Extract all table data
-4. Save results to JSON and CSV files
-5. Display progress in the console
+## Features
 
-**Output Files:**
-- `scraped-players-YYYY-MM-DD.json` - Complete data with metadata
-- `scraped-players-YYYY-MM-DD.csv` - Spreadsheet-friendly format
+- **Multi-phase scraping**: 
+  - Phase 1: Scrapes player list from all search result pages
+  - Phase 2: Fetches detailed information for each player
+  - Phase 3: Uploads to Google Sheets with upsert logic
 
-The scraper handles multiple tables on the page and extracts up to 20 rows from each table for analysis.
+- **Google Sheets Integration**:
+  - Automatic spreadsheet creation
+  - Upsert functionality (updates existing, adds new)
+  - Formatted headers with colors
+  - Auto-resized columns
 
-## Google Sheets Integration
+- **Robust scraping**:
+  - Headless Chrome automation
+  - Automatic retry logic
+  - Progress tracking
+  - Error handling
 
-Automatically upload scraped data to Google Sheets for easy sharing and analysis.
+## Cron Setup
 
-### Setup Google Sheets Access:
-
-**Option 1: Service Account (Recommended for automation)**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable Google Sheets API
-4. Create a Service Account
-5. Download the JSON key file and save as `service-account.json`
-6. Share your Google Sheet with the service account email
-
-**Option 2: OAuth2 (For personal use)**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create OAuth 2.0 Client ID credentials
-3. Add credentials to `.env` file
-4. Run setup: `npm run setup-google-auth`
-
-### Usage:
+To run automatically, add to crontab:
 
 ```bash
-# Setup authentication (OAuth2 only)
-npm run setup-google-auth
-
-# Scrape data directly to Google Sheets
-npm run scrape-to-sheets
+# Run daily at 2 AM
+0 2 * * * cd /path/to/project && php scrape-all-with-details.php >> logs/scraper.log 2>&1
 ```
 
-**Features:**
-- Creates new spreadsheet or uses existing one
-- Separate sheets for each data table
-- Automatic formatting (colored headers, auto-resize)
-- Includes player IDs in separate columns
-- Local JSON backup included
+## Project Structure
 
-**Environment Variables:**
+```
+.
+├── composer.json              # PHP dependencies
+├── .env                       # Environment configuration
+├── scrape-all-with-details.php # Main scraper script
+├── src/
+│   └── GoogleSheetsManager.php # Google Sheets integration
+└── service-account.json       # Google service account credentials
+```
+
+## Differences from Node.js Version
+
+- Uses **Symfony Panther** instead of Playwright
+- Uses **Google API PHP Client** instead of googleapis npm package
+- Native PHP instead of JavaScript
+- Same functionality and features
+
+## Troubleshooting
+
+**ChromeDriver issues:**
 ```bash
-# Add to .env file
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_client_secret
-GOOGLE_SPREADSHEET_ID=optional_existing_sheet_id
+# Panther will auto-download ChromeDriver, but if issues occur:
+composer require --dev dbrekelmans/bdi
+vendor/bin/bdi detect drivers
+```
+
+**Memory issues:**
+```bash
+php -d memory_limit=512M scrape-all-with-details.php
+```
+
+**Permission errors:**
+```bash
+chmod +x scrape-all-with-details.php
 ```
