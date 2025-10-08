@@ -1,0 +1,11 @@
+node_modules
+.env
+.DS_Store
+playwright-report/
+test-results/
+logs/
+*.log
+service-account.json
+google-token.json
+scraped-players-*.json
+scraped-players-*.csv
