@@ -1,6 +1,6 @@
-# PHP Dependencies
-/vendor/
-composer.lock
+# Node.js Dependencies
+node_modules/
+package-lock.json
 
 # Environment & Credentials
 .env
@@ -15,9 +15,10 @@ logs/
 scraped-players-*.json
 scraped-players-*.csv
 
-# Browser Drivers
-drivers/
-.chromedriver/
+# Playwright
+.playwright/
+playwright-report/
+test-results/
 
 # IDE & OS
 .DS_Store
@@ -30,3 +31,7 @@ drivers/
 # Screenshots (debug)
 *.png
 debug-*.png
+
+# Build
+dist/
+build/
