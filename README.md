@@ -503,7 +503,7 @@ Find the best player transfer deals automatically!
 
 ### What It Does
 
-Analyzes all players and finds the top 20 with the best value by comparing:
+Analyzes **all players from all pages** and finds the top 20 with the best value by comparing:
 - **Estimated Transfer Value** (what the player is worth)
 - **Asking Price for Bid** (what the club wants)
 - **Difference** (your potential savings)

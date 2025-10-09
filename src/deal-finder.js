@@ -17,30 +17,56 @@ class DealFinder {
 			Logger.info("Starting deal finder...");
 
 			// Launch browser and login
-			const page = await this.browserService.launch();
+			await this.browserService.launch();
 			await this.browserService.login();
 
-			// Navigate to player search
+			// Navigate to player search and get total pages
 			Logger.info("Navigating to player search...");
 			await this.browserService.navigateToSearchPage(1);
+			const totalPages = await this.browserService.getTotalPages();
 
-			// Get all players from search results
-			Logger.info("Scraping player list...");
+			Logger.info(`Found ${totalPages} pages to analyze`);
+
+			const pagesToScrape = config.scraper.testMode ? 1 : totalPages;
+			if (config.scraper.testMode) {
+				Logger.warning("TEST MODE: Analyzing only page 1");
+			}
+
+			// Get all players from all pages
+			Logger.info("Scraping player list from all pages...");
 			const scraperService = new ScraperService(this.browserService.page);
-			const { players } = await scraperService.scrapePlayerList();
+			const allPlayers = new Map();
 
-			Logger.info(`Found ${players.size} players`);
+			for (let pageNum = 1; pageNum <= pagesToScrape; pageNum++) {
+				Logger.info(`Scraping page ${pageNum}/${pagesToScrape}...`);
+
+				await this.browserService.navigateToSearchPage(pageNum);
+				const { players } = await scraperService.scrapePlayerList();
+
+				players.forEach((row, id) => allPlayers.set(id, row));
+
+				await this.browserService.page.waitForTimeout(
+					config.scraper.delays.betweenPages,
+				);
+			}
+
+			Logger.info(`Found ${allPlayers.size} total players across all pages`);
 
 			// Analyze deals for each player
 			const deals = [];
 			let processedCount = 0;
+			const playersToCheck = config.scraper.testMode ? 1 : allPlayers.size;
 
-			for (const [playerId, playerData] of players) {
+			if (config.scraper.testMode) {
+				Logger.warning("TEST MODE: Checking only 1 player");
+			}
+
+			for (const [playerId, playerData] of allPlayers) {
 				processedCount++;
 				const playerName = playerData[0]; // First column is name
 
 				Logger.info(
-					`[${processedCount}/${players.size}] Analyzing ${playerName} (ID: ${playerId})`,
+					`[${processedCount}/${playersToCheck}] Analyzing ${playerName} (ID: ${playerId})`,
 				);
 
 				try {
