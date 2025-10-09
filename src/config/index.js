@@ -18,6 +18,7 @@ const config = {
 	// Scraper configuration
 	scraper: {
 		testMode: process.env.TEST_MODE === "true",
+		skipPlayerDetails: process.env.SKIP_PLAYER_DETAILS === "true", // Skip details to save memory
 		excludeColumns: ["Wage", "Ask. Price", "Deadline", ""],
 		delays: {
 			betweenPages: 100, // Reduced from 300ms

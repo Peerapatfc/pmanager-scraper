@@ -29,8 +29,12 @@ class PManagerScraper {
 			// Phase 1: Scrape player list
 			const { players, enhancedHeaders } = await this.scrapePlayerList();
 
-			// Phase 2: Scrape player details
-			await this.scrapePlayerDetails(players, enhancedHeaders);
+			// Phase 2: Scrape player details (skip if configured to save memory)
+			if (!config.scraper.skipPlayerDetails) {
+				await this.scrapePlayerDetails(players, enhancedHeaders);
+			} else {
+				Logger.warning("Skipping player details (SKIP_PLAYER_DETAILS=true)");
+			}
 
 			// Phase 3: Upload to Google Sheets
 			await this.uploadToSheets(players, enhancedHeaders);
@@ -125,8 +129,8 @@ class PManagerScraper {
 		let successCount = 0;
 		let errorCount = 0;
 
-		// Process in batches to reduce memory usage
-		const batchSize = 50;
+		// Process in smaller batches with aggressive memory management
+		const batchSize = 20; // Reduced from 50
 		for (let i = 0; i < playerIdsToProcess.length; i++) {
 			const playerId = playerIdsToProcess[i];
 			Logger.progress(
@@ -158,13 +162,25 @@ class PManagerScraper {
 				Logger.detail(`❌ Error: ${error.message}`);
 			}
 
+			// Minimal delay to save time
 			await this.browserService.page.waitForTimeout(
 				config.scraper.delays.betweenPlayers,
 			);
 
-			// Force garbage collection every batch
-			if ((i + 1) % batchSize === 0 && global.gc) {
-				global.gc();
+			// Aggressive memory management every batch
+			if ((i + 1) % batchSize === 0) {
+				// Force garbage collection
+				if (global.gc) {
+					global.gc();
+				}
+
+				// Clear browser cache
+				const context = this.browserService.page.context();
+				await context.clearCookies();
+
+				Logger.info(
+					`Memory cleanup at player ${i + 1}/${playerIdsToProcess.length}`,
+				);
 			}
 		}
 

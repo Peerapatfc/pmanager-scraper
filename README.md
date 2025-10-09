@@ -738,22 +738,37 @@ Normal! The script automatically skips closed transfers. Look for:
 
 ### Memory Issues (Render Free Tier)
 
-**Problem:** Render free tier has only 512MB RAM, which can cause out-of-memory errors.
+**Problem:** Render free tier has only 512MB RAM, which can cause out-of-memory errors during player detail scraping.
 
 **Solutions:**
 
 1. **Already Optimized:**
    - Browser runs with minimal flags
-   - Garbage collection enabled
-   - Memory limit set to 450MB
+   - Aggressive garbage collection every 20 players
+   - Memory limit set to 400MB
    - Single process mode
+   - Browser cache cleared regularly
 
-2. **If Still Having Issues:**
-   - Use TEST_MODE for smaller runs
-   - Upgrade to Render paid plan ($7/month with 512MB+ RAM)
-   - Deploy to a service with more RAM
+2. **If Still Having Issues - Skip Player Details:**
+   
+   Add to Render environment variables:
+   ```env
+   SKIP_PLAYER_DETAILS=true
+   ```
+   
+   This will:
+   - ✅ Only scrape player list (Name, Position, Age, Skills, etc.)
+   - ✅ Skip detailed info (Team, Quality, Potential, Value)
+   - ✅ Use ~50% less memory
+   - ✅ Run ~60% faster (~10 minutes instead of 28)
+   - ⚠️ No detailed player information
 
-3. **Local Development:**
+3. **Other Options:**
+   - Use TEST_MODE for testing
+   - Upgrade to Render paid plan ($7/month)
+   - Deploy to a service with more RAM (Railway, Fly.io)
+
+4. **Local Development:**
    ```bash
    NODE_OPTIONS="--max-old-space-size=4096" npm start
    ```
