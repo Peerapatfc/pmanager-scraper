@@ -24,6 +24,7 @@ app.get("/", (req, res) => {
 		endpoints: {
 			"/": "Health check",
 			"/trigger?key=SECRET": "Trigger scraper",
+			"/find-deals?key=SECRET": "Find best deals",
 			"/status": "Check status",
 		},
 	});
@@ -56,13 +57,13 @@ app.get("/trigger", async (req, res) => {
 		const originalError = console.error;
 
 		console.log = (...args) => {
-			const message = args.join(" ") + "\n";
+			const message = `${args.join(" ")}\n`;
 			res.write(message);
 			originalLog(...args);
 		};
 
 		console.error = (...args) => {
-			const message = args.join(" ") + "\n";
+			const message = `${args.join(" ")}\n`;
 			res.write(message);
 			originalError(...args);
 		};
@@ -81,6 +82,83 @@ app.get("/trigger", async (req, res) => {
 			timestamp: new Date().toISOString(),
 			status: "success",
 			duration: `${duration}s`,
+		};
+	} catch (error) {
+		res.write(`\n❌ Error: ${error.message}\n`);
+
+		lastRun = {
+			timestamp: new Date().toISOString(),
+			status: "error",
+			error: error.message,
+		};
+	} finally {
+		isRunning = false;
+		res.end();
+	}
+});
+
+// Deal finder endpoint
+app.get("/find-deals", async (req, res) => {
+	// Check secret key
+	if (req.query.key !== config.server.secretKey) {
+		Logger.warning("Unauthorized deal finder attempt");
+		return res.status(401).json({ error: "Unauthorized" });
+	}
+
+	// Check if already running
+	if (isRunning) {
+		return res.status(429).json({
+			error: "Task already running",
+			message: "Please wait for current run to complete",
+		});
+	}
+
+	try {
+		isRunning = true;
+		const startTime = new Date();
+
+		// Stream response
+		res.writeHead(200, {
+			"Content-Type": "text/plain; charset=utf-8",
+			"Transfer-Encoding": "chunked",
+		});
+
+		res.write("🎯 Starting deal finder...\n\n");
+
+		// Capture console output
+		const originalLog = console.log;
+		const originalError = console.error;
+
+		console.log = (...args) => {
+			const message = `${args.join(" ")}\n`;
+			res.write(message);
+			originalLog(...args);
+		};
+
+		console.error = (...args) => {
+			const message = `${args.join(" ")}\n`;
+			res.write(message);
+			originalError(...args);
+		};
+
+		const DealFinder = require("./src/deal-finder");
+		const finder = new DealFinder();
+		const deals = await finder.run();
+
+		console.log = originalLog;
+		console.error = originalError;
+
+		const endTime = new Date();
+		const duration = Math.round((endTime - startTime) / 1000);
+
+		res.write(`\n✅ Completed successfully in ${duration} seconds!\n`);
+		res.write(`📊 Found ${deals.length} deals\n`);
+
+		lastRun = {
+			timestamp: new Date().toISOString(),
+			status: "success",
+			duration: `${duration}s`,
+			deals: deals.length,
 		};
 	} catch (error) {
 		res.write(`\n❌ Error: ${error.message}\n`);
@@ -123,6 +201,7 @@ app.listen(PORT, "0.0.0.0", () => {
 	Logger.info("Endpoints:");
 	Logger.info("  GET  /              - Health check");
 	Logger.info("  GET  /trigger       - Trigger scraper (requires ?key=SECRET)");
+	Logger.info("  GET  /find-deals    - Find best deals (requires ?key=SECRET)");
 	Logger.info("  GET  /status        - Check last run status");
 	Logger.info("");
 	Logger.info(`Test mode: ${config.scraper.testMode ? "ENABLED" : "DISABLED"}`);

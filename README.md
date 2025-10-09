@@ -1,12 +1,22 @@
 # PManager Scraper
 
-A professional web scraper for PManager player data with Google Sheets integration. Built with Node.js, Playwright, and Express.
+A professional web scraper for PManager player data with Google Sheets integration and deal finder. Built with Node.js, Playwright, and Express.
 
 ## 🎯 Features
 
+### Player Scraper
 - **Automated Data Collection** - Scrapes player data from all search result pages
 - **Detailed Player Information** - Extracts Team, Quality, Potential, Value, and more
 - **Google Sheets Integration** - Automatic upload with smart upsert logic
+- **Smart Upsert** - Updates existing players, adds new ones
+
+### Deal Finder (NEW!)
+- **Transfer Analysis** - Compares Estimated Transfer Value vs Asking Price
+- **Top 20 Deals** - Finds and ranks best value transfers
+- **Telegram Notifications** - Instant alerts for good deals
+- **Auto-Skip Closed Transfers** - Skips unavailable players automatically
+
+### General
 - **Web API** - HTTP endpoints for remote triggering
 - **Test Mode** - Quick testing with minimal data
 - **Production Ready** - Modular architecture, error handling, logging
@@ -172,6 +182,36 @@ TEST_MODE=true
 - Cron jobs
 - Full data collection
 
+---
+
+## ⏰ Automation (Run Every 12 Hours)
+
+### Option 1: Local Machine (Linux/macOS)
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add this line (runs at 8 AM and 8 PM)
+0 8,20 * * * cd /path/to/pmanager-scraper && node find-deals.js >> logs/cron.log 2>&1
+```
+
+### Option 2: Render.com + cron-job.org (Recommended)
+
+1. Deploy to Render (see below)
+2. Sign up at https://cron-job.org (free)
+3. Create cron job:
+   - URL: `https://your-app.onrender.com/find-deals?key=YOUR_SECRET`
+   - Schedule: `0 */12 * * *` (every 12 hours)
+
+### Option 3: Windows Task Scheduler
+
+1. Open Task Scheduler
+2. Create two triggers: 8 AM and 8 PM daily
+3. Action: Run `node.exe find-deals.js`
+
+---
+
 ## 🚀 Deployment
 
 ### Deploy to Render.com (Recommended)
@@ -201,21 +241,23 @@ git push -u origin main
 
 In Render dashboard, add these environment variables:
 
-| Key | Value | Example |
-|-----|-------|---------|
-| `PORT` | `8080` | `8080` |
-| `TEST_USERNAME` | Your PManager username | `john_doe` |
-| `TEST_PASSWORD` | Your PManager password | `your_password` |
-| `GOOGLE_SPREADSHEET_ID` | Your Google Sheet ID | `13SQ-2CqFdkvY...` |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | **Entire service account JSON** | See below ⬇️ |
-| `CRON_SECRET_KEY` | Random secret key | `abc123xyz789` |
-| `TEST_MODE` | `false` | `false` |
+| Key | Value |
+|-----|-------|
+| `PORT` | `8080` |
+| `TEST_USERNAME` | Your PManager username |
+| `TEST_PASSWORD` | Your PManager password |
+| `GOOGLE_SPREADSHEET_ID` | Your Google Sheet ID |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | **Entire service account JSON** (see below) |
+| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token (optional) |
+| `TELEGRAM_CHAT_ID` | Your Telegram chat ID (optional) |
+| `CRON_SECRET_KEY` | Random secret key |
+| `TEST_MODE` | `false` |
 
 **Important:** For `GOOGLE_SERVICE_ACCOUNT_JSON`:
 1. Open your `service-account.json` file
 2. Copy the **entire JSON content** (all of it, including `{` and `}`)
-3. Paste it as a **single line** into Render
-4. Example: `{"type":"service_account","project_id":"my-project","private_key_id":"abc123",...}`
+3. Paste it into Render as environment variable
+4. Example: `{"type":"service_account","project_id":"my-project",...}`
 
 #### 4. Deploy
 
@@ -252,15 +294,7 @@ https://pmanager-scraper.onrender.com
 GET /
 ```
 
-Response:
-```json
-{
-  "status": "ok",
-  "service": "PManager Scraper",
-  "version": "2.0.0",
-  "test_mode": false
-}
-```
+Returns service status and available endpoints.
 
 ### Trigger Scraper
 
@@ -268,9 +302,15 @@ Response:
 GET /trigger?key=YOUR_SECRET_KEY
 ```
 
-Starts the scraper and streams output in real-time.
+Starts the player scraper (uploads to Google Sheets).
 
-**Security:** Requires secret key from `CRON_SECRET_KEY` environment variable.
+### Find Deals
+
+```bash
+GET /find-deals?key=YOUR_SECRET_KEY
+```
+
+Starts the deal finder (sends to Telegram).
 
 ### Check Status
 
@@ -278,18 +318,9 @@ Starts the scraper and streams output in real-time.
 GET /status
 ```
 
-Response:
-```json
-{
-  "last_run": {
-    "timestamp": "2025-10-09T10:32:10.000Z",
-    "status": "success",
-    "duration": "45s"
-  },
-  "is_running": false,
-  "test_mode": false
-}
-```
+Returns last run information and current status.
+
+**Security:** All trigger endpoints require the secret key from `CRON_SECRET_KEY`.
 
 ## 📁 Project Structure
 
@@ -362,7 +393,7 @@ npx playwright install chromium --with-deps
 
 ### Google Sheets Authentication Failed
 
-- Check `service-account.json` exists
+- Check `GOOGLE_SERVICE_ACCOUNT_JSON` environment variable is set
 - Verify service account has access to spreadsheet
 - Share spreadsheet with service account email
 
@@ -371,6 +402,19 @@ npx playwright install chromium --with-deps
 - Verify `TEST_USERNAME` and `TEST_PASSWORD` in `.env`
 - Check credentials are correct
 - Try logging in manually to verify account works
+
+### Telegram Not Working
+
+- Check `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set
+- Make sure you started the bot (sent `/start`)
+- Test manually: `curl -X POST "https://api.telegram.org/bot<TOKEN>/sendMessage" -d '{"chat_id":"<CHAT_ID>","text":"Test"}'`
+
+### Transfer Closed Message
+
+Normal! The script automatically skips closed transfers. Look for:
+```
+⚠️  Transfer closed for Player Name, skipping...
+```
 
 ### Memory Issues
 
@@ -383,14 +427,8 @@ NODE_OPTIONS="--max-old-space-size=4096" npm start
 
 Check logs for:
 - Missing environment variables
-- Invalid `service-account.json`
+- Invalid `GOOGLE_SERVICE_ACCOUNT_JSON`
 - Chrome installation errors
-
-### Scraper Times Out
-
-- Enable `TEST_MODE=true` for faster runs
-- Upgrade to paid Render plan for more resources
-- Reduce number of pages to scrape
 
 ## 💰 Costs
 
@@ -437,39 +475,119 @@ Check logs for:
 - ⚡ Adjust delays if needed
 - ⚡ Consider upgrading for heavy usage
 
-## 📝 Scripts
+## 📝 Commands
 
 ```bash
-npm start          # Run scraper once
-npm run server     # Start web server
-npm run dev        # Development mode with auto-reload
+# Run everything (scraper + deal finder)
+npm run all
+
+# Run scraper only (Google Sheets)
+npm start
+
+# Find best transfer deals (Telegram)
+npm run find-deals
+
+# Start web server
+npm run server
+
+# Test mode (1 player only)
+TEST_MODE=true npm run find-deals
+TEST_MODE=true npm start
 ```
 
-## 🤝 Contributing
+---
 
-Contributions welcome! Please:
+## 🎯 Deal Finder
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+Find the best player transfer deals automatically!
+
+### What It Does
+
+Analyzes all players and finds the top 20 with the best value by comparing:
+- **Estimated Transfer Value** (what the player is worth)
+- **Asking Price for Bid** (what the club wants)
+- **Difference** (your potential savings)
+
+### Quick Start
+
+```bash
+# Run deal finder
+npm run find-deals
+
+# Test with 1 player first
+TEST_MODE=true npm run find-deals
+```
+
+### Telegram Setup (Optional but Recommended)
+
+Get instant notifications on your phone!
+
+1. **Create Bot:**
+   - Open Telegram, search `@BotFather`
+   - Send `/newbot` and follow instructions
+   - Copy the bot token
+
+2. **Get Chat ID:**
+   - Search `@userinfobot` in Telegram
+   - Start chat, it will send your Chat ID
+
+3. **Add to .env:**
+   ```env
+   TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+   TELEGRAM_CHAT_ID=123456789
+   ```
+
+4. **Start your bot:**
+   - Find your bot in Telegram
+   - Click "Start"
+
+Done! Now you'll receive deal notifications automatically.
+
+### Example Output
+
+```
+🥇 1. John Doe
+   💰 Difference: 2,691,400 baht
+   📊 Estimated: 20,191,400 baht
+   💸 Asking:    17,500,000 baht
+   🔗 [View Player]
+```
+
+## 💡 Best Practices
+
+1. **Test First** - Always use `TEST_MODE=true` before full runs
+2. **Monitor Logs** - Watch for errors and warnings
+3. **Check Results** - Verify data in Google Sheets and Telegram
+4. **Run Regularly** - Set up automation for best results (every 12 hours recommended)
+5. **Act Fast** - Good deals disappear quickly
+6. **Verify Manually** - Always double-check deals before bidding
+
+---
+
+## 🎯 Example Workflow
+
+1. **Morning (8 AM):** Automated run finds deals → Telegram notification
+2. **Check Telegram:** Review top 20 deals on your phone
+3. **Analyze:** Consider team needs, budget, quality, potential
+4. **Act:** Place bids on best deals
+5. **Evening (8 PM):** Automated run finds new opportunities
+
+---
+
+## 📊 Performance
+
+| Task | Players | Time |
+|------|---------|------|
+| Test Mode | 1 | ~10 sec |
+| Scraper | ~1,118 | ~38 min |
+| Deal Finder | ~1,118 | ~40 min |
+| Both | ~1,118 | ~80 min |
+
+---
 
 ## 📄 License
 
 MIT License - feel free to use for personal or commercial projects.
-
-## 🆘 Support
-
-- **Issues:** [GitHub Issues](https://github.com/yourusername/pmanager-scraper/issues)
-- **Render Docs:** https://render.com/docs
-- **Playwright Docs:** https://playwright.dev
-
-## 🎉 Acknowledgments
-
-- Built with [Playwright](https://playwright.dev)
-- Powered by [Google Sheets API](https://developers.google.com/sheets/api)
-- Deployed on [Render.com](https://render.com)
 
 ---
 

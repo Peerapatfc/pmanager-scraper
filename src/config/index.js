@@ -26,6 +26,13 @@ const config = {
 		},
 	},
 
+	// Telegram configuration
+	telegram: {
+		botToken: process.env.TELEGRAM_BOT_TOKEN,
+		chatId: process.env.TELEGRAM_CHAT_ID,
+		enabled: process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID,
+	},
+
 	// Web server configuration
 	server: {
 		port: process.env.PORT || 8080,

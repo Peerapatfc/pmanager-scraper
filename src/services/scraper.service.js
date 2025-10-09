@@ -192,6 +192,84 @@ class ScraperService {
 
 		return details;
 	}
+
+	/**
+	 * Scrape negotiation page for transfer values
+	 * @param {string} playerId - Player ID
+	 * @returns {Promise<object>} Transfer values
+	 */
+	async scrapeNegotiationValues(playerId) {
+		try {
+			// Check if transfer is closed (look for the message in font.comentarios)
+			const closedMessage = await this.page
+				.locator(
+					'font.comentarios:has-text("The transfer of this player is already closed")',
+				)
+				.count();
+
+			if (closedMessage > 0) {
+				return { closed: true };
+			}
+
+			const values = {};
+
+			// Estimated Transfer Value
+			const estimatedText = await this.page
+				.locator('td.cabecalhos:has-text("Estimated Transfer Value") + td')
+				.first()
+				.textContent()
+				.catch(() => "");
+			values.estimatedTransferValue = this.parseValue(estimatedText);
+
+			// Asking Price for Bid
+			const askingText = await this.page
+				.locator('td.cabecalhos:has-text("Asking Price for Bid") + td')
+				.first()
+				.textContent()
+				.catch(() => "");
+			values.askingPrice = this.parseValue(askingText);
+
+			// Calculate difference
+			if (values.estimatedTransferValue && values.askingPrice) {
+				values.difference = values.estimatedTransferValue - values.askingPrice;
+			}
+
+			return values;
+		} catch (error) {
+			Logger.error(
+				`Failed to scrape negotiation values for player ${playerId}`,
+				error,
+			);
+			return {};
+		}
+	}
+
+	/**
+	 * Parse value string to number
+	 * @param {string} text - Text containing value
+	 * @returns {number} Parsed value
+	 */
+	parseValue(text) {
+		if (!text) return 0;
+
+		// Extract number from text like "20.191.400 baht"
+		const match = text.match(/[\d.]+/);
+		if (!match) return 0;
+
+		// Remove dots and parse as integer
+		const numberStr = match[0].replace(/\./g, "");
+		return Number.parseInt(numberStr, 10) || 0;
+	}
+
+	/**
+	 * Format number back to readable format
+	 * @param {number} value - Number value
+	 * @returns {string} Formatted value
+	 */
+	formatValue(value) {
+		if (!value) return "0";
+		return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+	}
 }
 
 module.exports = ScraperService;

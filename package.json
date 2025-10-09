@@ -5,6 +5,9 @@
 	"main": "index.js",
 	"scripts": {
 		"start": "node index.js",
+		"scrape": "node index.js",
+		"find-deals": "node find-deals.js",
+		"all": "node run-all.js",
 		"server": "node server.js",
 		"dev": "nodemon server.js"
 	},
