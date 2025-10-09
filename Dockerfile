@@ -44,5 +44,5 @@ COPY . .
 # Expose port
 EXPOSE 8080
 
-# Run the web server
-CMD ["node", "server.js"]
+# Run the web server with memory optimizations
+CMD ["node", "--expose-gc", "--max-old-space-size=450", "server.js"]

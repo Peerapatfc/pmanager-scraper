@@ -44,16 +44,16 @@ class BrowserService {
 
 		await this.page.goto(
 			`${config.pmanager.baseUrl}${baseSearchUrl}&pid=${pageNumber}`,
+			{ waitUntil: "domcontentloaded" }, // Faster than networkidle
 		);
-		await this.page.waitForLoadState("networkidle");
-		await this.page.waitForSelector("table", { timeout: 10000 });
+		await this.page.waitForSelector("table", { timeout: 5000 });
 	}
 
 	async navigateToPlayerPage(playerId) {
 		await this.page.goto(
 			`${config.pmanager.baseUrl}/ver_jogador.asp?jog_id=${playerId}#info`,
+			{ waitUntil: "domcontentloaded" }, // Faster than networkidle
 		);
-		await this.page.waitForLoadState("networkidle");
 		await this.page.waitForTimeout(config.scraper.delays.afterPageLoad);
 	}
 

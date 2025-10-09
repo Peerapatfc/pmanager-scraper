@@ -125,6 +125,8 @@ class PManagerScraper {
 		let successCount = 0;
 		let errorCount = 0;
 
+		// Process in batches to reduce memory usage
+		const batchSize = 50;
 		for (let i = 0; i < playerIdsToProcess.length; i++) {
 			const playerId = playerIdsToProcess[i];
 			Logger.progress(
@@ -159,6 +161,11 @@ class PManagerScraper {
 			await this.browserService.page.waitForTimeout(
 				config.scraper.delays.betweenPlayers,
 			);
+
+			// Force garbage collection every batch
+			if ((i + 1) % batchSize === 0 && global.gc) {
+				global.gc();
+			}
 		}
 
 		Logger.success(
