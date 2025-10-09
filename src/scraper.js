@@ -165,7 +165,7 @@ class PManagerScraper {
 			spreadsheetTitle,
 		);
 
-		const sheetName = "Current_Very_Good_Players";
+		const sheetName = "All_Transfer_Players";
 		const allPlayerRows = Array.from(players.values());
 		const playerIdColumnIndex = enhancedHeaders.findIndex(
 			(h) => h === "PlayerID",
