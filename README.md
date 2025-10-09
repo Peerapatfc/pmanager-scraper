@@ -199,21 +199,25 @@ git push -u origin main
 
 #### 3. Add Environment Variables
 
-| Key | Value |
-|-----|-------|
-| `PORT` | `8080` |
-| `TEST_USERNAME` | Your PManager username |
-| `TEST_PASSWORD` | Your PManager password |
-| `GOOGLE_SPREADSHEET_ID` | Your Google Sheet ID |
-| `CRON_SECRET_KEY` | Random secret key |
-| `TEST_MODE` | `false` |
+In Render dashboard, add these environment variables:
 
-#### 4. Add Secret File
+| Key | Value | Example |
+|-----|-------|---------|
+| `PORT` | `8080` | `8080` |
+| `TEST_USERNAME` | Your PManager username | `john_doe` |
+| `TEST_PASSWORD` | Your PManager password | `your_password` |
+| `GOOGLE_SPREADSHEET_ID` | Your Google Sheet ID | `13SQ-2CqFdkvY...` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | **Entire service account JSON** | See below ⬇️ |
+| `CRON_SECRET_KEY` | Random secret key | `abc123xyz789` |
+| `TEST_MODE` | `false` | `false` |
 
-- Click **"Secret Files"**
-- Add `service-account.json` with your Google credentials
+**Important:** For `GOOGLE_SERVICE_ACCOUNT_JSON`:
+1. Open your `service-account.json` file
+2. Copy the **entire JSON content** (all of it, including `{` and `}`)
+3. Paste it as a **single line** into Render
+4. Example: `{"type":"service_account","project_id":"my-project","private_key_id":"abc123",...}`
 
-#### 5. Deploy
+#### 4. Deploy
 
 Click **"Create Web Service"** and wait 5-10 minutes.
 

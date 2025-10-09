@@ -15,20 +15,32 @@ class GoogleSheetsService {
 	 */
 	async authenticate() {
 		try {
-			const serviceAccountPath = config.googleSheets.serviceAccountPath;
+			Logger.info("Authenticating with Google Sheets...");
+			let credentials;
 
-			if (!fs.existsSync(serviceAccountPath)) {
-				Logger.error(`Service account file not found: ${serviceAccountPath}`);
-				return false;
+			// Try environment variable first (for production/Render)
+			if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+				Logger.info("Using service account from environment variable");
+				credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+			}
+			// Fall back to file (for local development)
+			else {
+				const serviceAccountPath = config.googleSheets.serviceAccountPath;
+
+				if (!fs.existsSync(serviceAccountPath)) {
+					Logger.error(`Service account file not found: ${serviceAccountPath}`);
+					Logger.error(
+						"Set GOOGLE_SERVICE_ACCOUNT_JSON environment variable or provide service-account.json file",
+					);
+					return false;
+				}
+
+				Logger.info("Using service account from file");
+				credentials = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
 			}
 
-			Logger.info("Authenticating with Google Sheets...");
-			const credentialsFile = JSON.parse(
-				fs.readFileSync(serviceAccountPath, "utf8"),
-			);
-
 			this.auth = new google.auth.GoogleAuth({
-				credentials: credentialsFile,
+				credentials,
 				scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 			});
 
