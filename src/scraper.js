@@ -11,7 +11,7 @@ class PManagerScraper {
 		this.sheetsService = new SheetsService();
 	}
 
-	async run() {
+	async run(skipBrowserClose = false) {
 		try {
 			Logger.info("Starting PManager scraper...");
 			validateConfig();
@@ -36,11 +36,21 @@ class PManagerScraper {
 			await this.uploadToSheets(players, enhancedHeaders);
 
 			Logger.success("Scraping completed successfully!");
+
+			// Return data for potential reuse
+			return {
+				players,
+				enhancedHeaders,
+				browserService: this.browserService,
+			};
 		} catch (error) {
 			Logger.error("Scraping failed", error);
 			throw error;
 		} finally {
-			await this.browserService.close();
+			// Only close browser if not skipping (for reuse)
+			if (!skipBrowserClose) {
+				await this.browserService.close();
+			}
 		}
 	}
 

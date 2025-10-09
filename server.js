@@ -1,5 +1,6 @@
 const express = require("express");
-const runScraper = require("./index");
+const PManagerScraper = require("./src/scraper");
+const DealFinder = require("./src/deal-finder");
 const { config } = require("./src/config");
 const Logger = require("./src/utils/logger");
 
@@ -30,7 +31,7 @@ app.get("/", (req, res) => {
 	});
 });
 
-// Trigger scraper endpoint
+// Trigger everything endpoint (scraper + deal finder)
 app.get("/trigger", async (req, res) => {
 	const providedKey = req.query.key;
 
@@ -39,17 +40,18 @@ app.get("/trigger", async (req, res) => {
 	}
 
 	if (isRunning) {
-		return res.status(429).json({ error: "Scraper is already running" });
+		return res.status(429).json({ error: "Task is already running" });
 	}
 
 	// Set headers for streaming response
 	res.setHeader("Content-Type", "text/plain");
 	res.setHeader("Transfer-Encoding", "chunked");
 
-	res.write("🚀 Starting scraper...\n\n");
+	res.write("🚀 Starting complete analysis (scraper + deal finder)...\n\n");
 
 	isRunning = true;
 	const startTime = new Date();
+	let browserService = null;
 
 	try {
 		// Capture console output
@@ -68,20 +70,47 @@ app.get("/trigger", async (req, res) => {
 			originalError(...args);
 		};
 
-		await runScraper();
+		// Step 1: Run scraper (keep browser open)
+		res.write("📊 STEP 1: Scraping all player data...\n\n");
+		const scraper = new PManagerScraper();
+		const { players, browserService: browser } = await scraper.run(true);
+		browserService = browser;
+
+		res.write(`\n${"=".repeat(80)}\n\n`);
+
+		// Step 2: Run deal finder (reuse data and browser)
+		res.write("🎯 STEP 2: Finding best transfer deals...\n");
+		res.write(
+			"♻️  Reusing scraped player data (no need to scrape again)...\n\n",
+		);
+		const dealFinder = new DealFinder();
+		await dealFinder.run(players, browserService);
+
+		// Close browser
+		if (browserService) {
+			await browserService.close();
+		}
 
 		console.log = originalLog;
 		console.error = originalError;
 
 		const endTime = new Date();
 		const duration = Math.round((endTime - startTime) / 1000);
+		const minutes = Math.floor(duration / 60);
 
-		res.write(`\n✅ Scraper completed successfully in ${duration} seconds!\n`);
+		res.write(`\n${"=".repeat(80)}\n`);
+		res.write(`✅ All tasks completed successfully in ${minutes} minutes!\n`);
+		res.write(`${"=".repeat(80)}\n\n`);
+		res.write("📋 Summary:\n");
+		res.write("  ✅ Player data uploaded to Google Sheets\n");
+		res.write("  ✅ Top 20 deals identified\n");
+		res.write("  ✅ Results sent to Telegram (if configured)\n");
+		res.write("  ⚡ Optimized: Scraped player list only once!\n");
 
 		lastRun = {
 			timestamp: new Date().toISOString(),
 			status: "success",
-			duration: `${duration}s`,
+			duration: `${minutes}m`,
 		};
 	} catch (error) {
 		res.write(`\n❌ Error: ${error.message}\n`);
@@ -92,6 +121,14 @@ app.get("/trigger", async (req, res) => {
 			error: error.message,
 		};
 	} finally {
+		// Make sure browser is closed
+		if (browserService) {
+			try {
+				await browserService.close();
+			} catch (e) {
+				// Ignore close errors
+			}
+		}
 		isRunning = false;
 		res.end();
 	}

@@ -12,45 +12,57 @@ class DealFinder {
 			: null;
 	}
 
-	async run() {
+	async run(preScrappedPlayers = null, browserService = null) {
 		try {
 			Logger.info("Starting deal finder...");
 
-			// Launch browser and login
-			await this.browserService.launch();
-			await this.browserService.login();
+			let allPlayers;
+			let scraperService;
+			const shouldCloseBrowser = !browserService;
 
-			// Navigate to player search and get total pages
-			Logger.info("Navigating to player search...");
-			await this.browserService.navigateToSearchPage(1);
-			const totalPages = await this.browserService.getTotalPages();
+			// Use pre-scraped players if provided, otherwise scrape them
+			if (preScrappedPlayers) {
+				Logger.info("Using pre-scraped player data...");
+				allPlayers = preScrappedPlayers;
+				this.browserService = browserService;
+				scraperService = new ScraperService(this.browserService.page);
+			} else {
+				// Launch browser and login
+				await this.browserService.launch();
+				await this.browserService.login();
 
-			Logger.info(`Found ${totalPages} pages to analyze`);
+				// Navigate to player search and get total pages
+				Logger.info("Navigating to player search...");
+				await this.browserService.navigateToSearchPage(1);
+				const totalPages = await this.browserService.getTotalPages();
 
-			const pagesToScrape = config.scraper.testMode ? 1 : totalPages;
-			if (config.scraper.testMode) {
-				Logger.warning("TEST MODE: Analyzing only page 1");
+				Logger.info(`Found ${totalPages} pages to analyze`);
+
+				const pagesToScrape = config.scraper.testMode ? 1 : totalPages;
+				if (config.scraper.testMode) {
+					Logger.warning("TEST MODE: Analyzing only page 1");
+				}
+
+				// Get all players from all pages
+				Logger.info("Scraping player list from all pages...");
+				scraperService = new ScraperService(this.browserService.page);
+				allPlayers = new Map();
+
+				for (let pageNum = 1; pageNum <= pagesToScrape; pageNum++) {
+					Logger.info(`Scraping page ${pageNum}/${pagesToScrape}...`);
+
+					await this.browserService.navigateToSearchPage(pageNum);
+					const { players } = await scraperService.scrapePlayerList();
+
+					players.forEach((row, id) => allPlayers.set(id, row));
+
+					await this.browserService.page.waitForTimeout(
+						config.scraper.delays.betweenPages,
+					);
+				}
 			}
 
-			// Get all players from all pages
-			Logger.info("Scraping player list from all pages...");
-			const scraperService = new ScraperService(this.browserService.page);
-			const allPlayers = new Map();
-
-			for (let pageNum = 1; pageNum <= pagesToScrape; pageNum++) {
-				Logger.info(`Scraping page ${pageNum}/${pagesToScrape}...`);
-
-				await this.browserService.navigateToSearchPage(pageNum);
-				const { players } = await scraperService.scrapePlayerList();
-
-				players.forEach((row, id) => allPlayers.set(id, row));
-
-				await this.browserService.page.waitForTimeout(
-					config.scraper.delays.betweenPages,
-				);
-			}
-
-			Logger.info(`Found ${allPlayers.size} total players across all pages`);
+			Logger.info(`Analyzing ${allPlayers.size} players for deals...`);
 
 			// Analyze deals for each player
 			const deals = [];
@@ -149,7 +161,10 @@ class DealFinder {
 			Logger.error("Deal finder failed", error);
 			throw error;
 		} finally {
-			await this.browserService.close();
+			// Only close browser if we opened it (not using shared browser)
+			if (shouldCloseBrowser) {
+				await this.browserService.close();
+			}
 		}
 	}
 
